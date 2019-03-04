@@ -18,7 +18,7 @@ void StreamingServiceLayer::connect(const QString &url)
         m_websocketEndpoint = nullptr;
     }
 
-    m_websocketEndpoint = new QWebSocket("", QWebSocketProtocol::VersionLatest, this);
+    m_websocketEndpoint = new QWebSocket(url, QWebSocketProtocol::VersionLatest, this);
 
     QObject::connect(m_websocketEndpoint, &QWebSocket::connected, this, []() {
         qDebug() << "Connected";
