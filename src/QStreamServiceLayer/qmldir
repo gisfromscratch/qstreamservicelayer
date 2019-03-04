@@ -1,0 +1,2 @@
+module edu.gis.streamservice
+plugin QStreamServiceLayer
