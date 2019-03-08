@@ -4,7 +4,7 @@
 #
 #-------------------------------------------------
 
-QT       += websockets
+QT       += websockets network
 QT       -= gui
 
 TARGET = StreamingServiceLayer
