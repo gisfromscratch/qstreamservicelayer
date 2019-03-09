@@ -7,6 +7,7 @@
 
 QT_FORWARD_DECLARE_CLASS(QNetworkAccessManager)
 QT_FORWARD_DECLARE_CLASS(QNetworkReply)
+QT_FORWARD_DECLARE_CLASS(QJsonObject)
 
 class STREAMINGSERVICELAYERSHARED_EXPORT StreamingServiceLayer : public QObject
 {
@@ -18,14 +19,17 @@ public:
     void connect(const QString &url);
 
 public slots:
-    void ready();
-    void finished();
+    void connected();
+    void textMessageReceived(QString message);
+    void disconnected();
+
+    void finished(QNetworkReply*);
 
 private:
-    QWebSocket *m_websocketEndpoint = nullptr;
-    QNetworkAccessManager *m_networkManager;
-    QNetworkReply *m_networkReply;
-    QByteArray m_content;
+    void print(const QJsonObject &element);
+
+    QWebSocket m_webSocket;
+    QNetworkAccessManager *m_networkManager = nullptr;
 };
 
 #endif // STREAMINGSERVICELAYER_H

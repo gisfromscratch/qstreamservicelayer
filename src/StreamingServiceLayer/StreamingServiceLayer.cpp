@@ -2,6 +2,9 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QJsonDocument>
+#include <QJsonObject>
+
+#include <iostream>
 
 StreamingServiceLayer::StreamingServiceLayer(QObject *parent) : QObject (parent)
 {
@@ -14,19 +17,14 @@ StreamingServiceLayer::StreamingServiceLayer(QObject *parent) : QObject (parent)
  */
 void StreamingServiceLayer::connect(const QString &url)
 {
-    if (m_websocketEndpoint)
-    {
-        // TODO: Housekeeping close and delete
-        delete m_websocketEndpoint;
-        m_websocketEndpoint = nullptr;
-    }
-
     QNetworkRequest request;
     request.setUrl(url);
-    m_networkReply = m_networkManager->get(request);
-    QByteArray content;
-    QObject::connect(m_networkReply, SIGNAL(readyRead()), this, SLOT(ready()));
-    QObject::connect(m_networkReply, SIGNAL(finished()), this, SLOT(finished()));
+    //m_networkManager->get(request);
+    QObject::connect(m_networkManager, SIGNAL(finished(QNetworkReply*)), this, SLOT(finished(QNetworkReply*)));
+
+    QObject::connect(&m_webSocket, SIGNAL(connected()), this, SLOT(connected()));
+    QObject::connect(&m_webSocket, SIGNAL(disconnected()), this, SLOT(disconnected()));
+    m_webSocket.open(url);
 
     /*QObject::connect(reply, &QNetworkReply::finished, this, [reply, &content]() {
         QJsonDocument serviceDef = QJsonDocument::fromJson(content);
@@ -58,16 +56,69 @@ void StreamingServiceLayer::connect(const QString &url)
     */
 }
 
-void StreamingServiceLayer::ready()
+void StreamingServiceLayer::finished(QNetworkReply *reply)
 {
-    m_content = m_networkReply->readAll();
-}
+    if (QNetworkReply::NoError != reply->error())
+    {
+        std::cout << reply->errorString().toStdString();
+        return;
+    }
 
-void StreamingServiceLayer::finished()
-{
-    QJsonDocument serviceDef = QJsonDocument::fromJson(m_content);
+    QByteArray content = reply->readAll();
+    QJsonDocument serviceDef = QJsonDocument::fromJson(content);
     QString strJson(serviceDef.toJson(QJsonDocument::Compact));
     qDebug() << serviceDef;
 
-    m_networkReply->deleteLater();
+    reply->deleteLater();
+}
+
+void StreamingServiceLayer::connected()
+{
+    qDebug() << "Connected";
+    QObject::connect(&m_webSocket, SIGNAL(textMessageReceived(QString)), this, SLOT(textMessageReceived(QString)));
+}
+
+void StreamingServiceLayer::textMessageReceived(QString message)
+{
+    //qDebug() << message;
+    QJsonDocument json = QJsonDocument::fromJson(message.toUtf8());
+    if (json.isObject())
+    {
+        qDebug() << "JSON object received.";
+
+        QJsonObject jsonObject = json.object();
+        print(jsonObject);
+    }
+}
+
+void StreamingServiceLayer::disconnected()
+{
+    qDebug() << "Disonnected";
+}
+
+void StreamingServiceLayer::print(const QJsonObject &element)
+{
+    Q_FOREACH (QString subKey, element.keys())
+    {
+        QJsonValue value = element.value(subKey);
+        if (value.isString())
+        {
+            qDebug() << "\t" << subKey << ":\t" << value.toString();
+        }
+        else if (value.isBool())
+        {
+            qDebug() << "\t" << subKey << ":\t" << value.toBool();
+        }
+        else if (value.isDouble())
+        {
+            qDebug() << "\t" << subKey << ":\t" << value.toDouble();
+        }
+        else if (value.isObject())
+        {
+            qDebug() << "\t{";
+            qDebug() << subKey << ":";
+            print(value.toObject());
+            qDebug() << "\t}";
+        }
+    }
 }
